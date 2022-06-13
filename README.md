@@ -6,8 +6,7 @@ python -m pip install -e .
 Welcome to the **pyGimli Tree**  repository. 
 Name of the project: 
 
-* Characterizing and understanding Enhanced Geothermal Systems (EGS) - novel tools and applications in a 
-deep underground laboratory. 
+* Forward and inverse modeling of realistic tree data for both 2D and 3D, using prior information on tree geometry
 
 
 
