@@ -25,9 +25,9 @@ geometry_dict = load_datasets(experiment_plot='Control',
                               date=220511)
 
 filepaths = get_filepaths(experiment_plot='Control',
-                                         tree_number=616,
-                                         daytime='Afternoon',
-                                         date=220511)
+                          tree_number=616,
+                          daytime='Afternoon',
+                          date=220511)
 
 one_dataset = geometry_dict['measured_values_616_afternoon_220511_2']
 tree_geom = create_tree_mesh(one_dataset)
@@ -38,14 +38,18 @@ Homogeneous = ert.simulate(tree_geom, res=180, scheme=DataSet, sr=False, calcOnl
 k = 1.0 * Homogeneous('i') / Homogeneous('u')
 DataSet.set('k', -k)
 
-# Set different resistivities within the two cylinders (inner and outer one) and noise to the data
-# res = [[1, 180.0],
-# [2, 1340.0]]  # This maps markers 1 (outer cylinder) to 10 Ohm m and markers 2 (inner cylinder) to 100 Ohm m
-# resistivity values from Bieker and Rust, 2010: Non-Destructive Estimation of Sapwood and Heartwood Width in Scots Pine (Pinus sylvestris L.)
-# the error (err) is imported from the error calculation file
-err = error_calc('220511_Tree_nr_835_1.txt', '220511_Tree_nr_835_2.txt', '220511_Tree_nr_835_3.txt')
-DataSet.set('err', err)
-DataSet.save('Tree_Dataset_GF_morning_220511_1.dat', 'a b m n err rhoa k u i')
+
+
+# Still need to do everything from here downwards
+
+# # Set different resistivities within the two cylinders (inner and outer one) and noise to the data
+# # res = [[1, 180.0],
+# # [2, 1340.0]]  # This maps markers 1 (outer cylinder) to 10 Ohm m and markers 2 (inner cylinder) to 100 Ohm m
+# # resistivity values from Bieker and Rust, 2010: Non-Destructive Estimation of Sapwood and Heartwood Width in Scots Pine (Pinus sylvestris L.)
+# # the error (err) is imported from the error calculation file
+# err = error_calc('220511_Tree_nr_835_1.txt', '220511_Tree_nr_835_2.txt', '220511_Tree_nr_835_3.txt')
+# DataSet.set('err', err)
+# DataSet.save('Tree_Dataset_GF_morning_220511_1.dat', 'a b m n err rhoa k u i')
 
 #
 # # Circular pseudosections:
