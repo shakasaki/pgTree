@@ -24,10 +24,10 @@ geometry_dict = load_datasets(experiment_plot='Control',
                               daytime='Afternoon',
                               date=220511)
 
-filepaths = get_filepaths(experiment_plot='Control',
-                          tree_number=616,
-                          daytime='Afternoon',
-                          date=220511)
+filepaths = get_filepaths(experiment_plot='Irrigation',
+                          tree_number=835,
+                          daytime='Morning',
+                          date=220510)
 
 one_dataset = geometry_dict['measured_values_616_afternoon_220511_2']
 tree_geom = create_tree_mesh(one_dataset)
@@ -38,7 +38,9 @@ Homogeneous = ert.simulate(tree_geom, res=180, scheme=DataSet, sr=False, calcOnl
 k = 1.0 * Homogeneous('i') / Homogeneous('u')
 DataSet.set('k', -k)
 
-
+error_calc(filepaths['data'][0],
+           filepaths['data'][1],
+           filepaths['data'][2])
 
 # Still need to do everything from here downwards
 

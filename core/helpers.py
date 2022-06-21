@@ -172,7 +172,7 @@ def get_filepaths(experiment_plot: str = None,
     main_path = DATA_DIR + experiment_plot + os.sep + str(tree_number) + os.sep
     data_path = main_path + daytime + os.sep + str(date) + os.sep
     geometry_file = main_path + 'geometry_' + str(tree_number) + '.txt'
-    return {'data': os.listdir(data_path),
+    return {'data': [data_path + file for file in os.listdir(data_path)],
             'geometry': geometry_file}
 
 
