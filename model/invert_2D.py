@@ -11,20 +11,19 @@ from core.helpers import (create_tree_mesh,
                           error_calc,
                           load_datasets,
                           create_starting_model_3D,
-                        create_starting_model_2D,
+                          create_starting_model_2D,
                           get_filepaths)
 
 import pyvista as pv
 
-start = time.time()
 tree = 'Tree835_1_220511_morning'
 hardwood_radius = 0.0891
-
+# Load all data and geometry into a dictionary
 geometry_dict = load_datasets(experiment_plot='Control',
                               tree_number=616,
                               daytime='Afternoon',
                               date=220511)
-
+# Get all the filepaths for a certain experiment (e.g irrigation tree 835 during the morning of 220510)
 filepaths = get_filepaths(experiment_plot='Irrigation',
                           tree_number=835,
                           daytime='Morning',
@@ -39,8 +38,7 @@ Homogeneous = ert.simulate(tree_geom, res=180, scheme=DataSet, sr=False, calcOnl
 k = 1.0 * Homogeneous('i') / Homogeneous('u')
 DataSet.set('k', -k)
 
-DataSet['err'] = np.ones(DataSet['err'].shape[0])*0.1
-
+DataSet['err'] = np.ones(DataSet['err'].shape[0]) * 0.1
 
 error_calc(filepaths['data'][0],
            filepaths['data'][1],
@@ -64,21 +62,21 @@ pg.show(DataSet, circular=True)
 #
 # 2D Inversion
 
-#load the starting model, and the homogeneous and heterogeneous mesh from the functions file
+# load the starting model, and the homogeneous and heterogeneous mesh from the functions file
 starting_model_2D, mesh_2D, mesh_2D_hom = create_starting_model_2D(DataSet, hardwood_radius)
 
 DataSet['u'] = np.abs(DataSet['u'])
 DataSet['rhoa'] = np.abs(DataSet['rhoa'])
 DataSet['i'] = np.abs(DataSet['i'])
 
-
-
-#perform the inverion for a heterogeneous (with hardwood/sapwood boundary) and homogeneous tree
+# perform the inverion for a heterogeneous (with hardwood/sapwood boundary) and homogeneous tree
 ert_2D_het = ert.ERTManager()
 inv_2D_het = ert_2D_het.invert(DataSet,
                                mesh=mesh_2D,
                                startModel=starting_model_2D,
-                               verbose=True)
+                               verbose=True,
+                               calcOnly=True,
+                               sr=False)
 
 sim_2D_het = ert_2D_het.simulate(scheme=DataSet,
                                  mesh=mesh_2D,
@@ -87,9 +85,8 @@ sim_2D_het = ert_2D_het.simulate(scheme=DataSet,
                                  calcOnly=True,
                                  verbose=True)
 
-
 cov_2D_het = ert_2D_het.coverage()
-ert_2D_het.showResult(model=inv_2D_het, coverage=cov_2D_het, cMin=60, cMax=110)#, logScale=True)
+ert_2D_het.showResult(model=inv_2D_het, coverage=cov_2D_het, cMin=60, cMax=110)  # , logScale=True)
 ert_2D_het.showResult(cMin=60, cMax=110, logScale=True)
 #
 #
