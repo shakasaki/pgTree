@@ -11,6 +11,7 @@ from core.helpers import (create_tree_mesh,
                           error_calc,
                           load_datasets,
                           create_starting_model_3D,
+                        create_starting_model_2D,
                           get_filepaths)
 
 import pyvista as pv
@@ -38,39 +39,58 @@ Homogeneous = ert.simulate(tree_geom, res=180, scheme=DataSet, sr=False, calcOnl
 k = 1.0 * Homogeneous('i') / Homogeneous('u')
 DataSet.set('k', -k)
 
+DataSet['err'] = np.ones(DataSet['err'].shape[0])*0.1
+
+
 error_calc(filepaths['data'][0],
            filepaths['data'][1],
            filepaths['data'][2])
 
 # Still need to do everything from here downwards
 
-# # Set different resistivities within the two cylinders (inner and outer one) and noise to the data
-# # res = [[1, 180.0],
-# # [2, 1340.0]]  # This maps markers 1 (outer cylinder) to 10 Ohm m and markers 2 (inner cylinder) to 100 Ohm m
-# # resistivity values from Bieker and Rust, 2010: Non-Destructive Estimation of Sapwood and Heartwood Width in Scots Pine (Pinus sylvestris L.)
-# # the error (err) is imported from the error calculation file
-# err = error_calc('220511_Tree_nr_835_1.txt', '220511_Tree_nr_835_2.txt', '220511_Tree_nr_835_3.txt')
-# DataSet.set('err', err)
-# DataSet.save('Tree_Dataset_GF_morning_220511_1.dat', 'a b m n err rhoa k u i')
+# Set different resistivities within the two cylinders (inner and outer one) and noise to the data
+# res = [[1, 180.0],
+# [2, 1340.0]]  # This maps markers 1 (outer cylinder) to 10 Ohm m and markers 2 (inner cylinder) to 100 Ohm m
+# resistivity values from Bieker and Rust, 2010: Non-Destructive Estimation of Sapwood and Heartwood Width in Scots Pine (Pinus sylvestris L.)
+# the error (err) is imported from the error calculation file
+err = error_calc('220511_Tree_nr_835_1.txt', '220511_Tree_nr_835_2.txt', '220511_Tree_nr_835_3.txt')
+DataSet.set('err', err)
+DataSet.save('Tree_Dataset_GF_morning_220511_1.dat', 'a b m n err rhoa k u i')
 
-#
-# # Circular pseudosections:
-# #pg.show(DataSet, circular=True)
+# Circular pseudosections:
+pg.show(DataSet, circular=True)
 #
 # ##################################################################################################################################################
 #
-# # 2D Inversion
-#
-# #load the starting model, and the homogeneous and heterogeneous mesh from the functions file
-# starting_model_2D, mesh_2D, mesh_2D_hom = create_starting_model_2D(DataSet, hardwood_radius)
-#
-#
-# #perform the inverion for a heterogeneous (with hardwood/sapwood boundary) and homogeneous tree
-# ert_2D_het = ert.ERTManager()
-# inv_2D_het = ert_2D_het.invert(DataSet, mesh=mesh_2D, startModel=starting_model_2D)
-# cov_2D_het = ert_2D_het.coverage()
-# ert_2D_het.showResult(model=inv_2D_het, coverage=cov_2D_het, cMin=60, cMax=110)#, logScale=True)
-# ert_2D_het.showResult(cMin=60, cMax=110, logScale=True)
+# 2D Inversion
+
+#load the starting model, and the homogeneous and heterogeneous mesh from the functions file
+starting_model_2D, mesh_2D, mesh_2D_hom = create_starting_model_2D(DataSet, hardwood_radius)
+
+DataSet['u'] = np.abs(DataSet['u'])
+DataSet['rhoa'] = np.abs(DataSet['rhoa'])
+DataSet['i'] = np.abs(DataSet['i'])
+
+
+
+#perform the inverion for a heterogeneous (with hardwood/sapwood boundary) and homogeneous tree
+ert_2D_het = ert.ERTManager()
+inv_2D_het = ert_2D_het.invert(DataSet,
+                               mesh=mesh_2D,
+                               startModel=starting_model_2D,
+                               verbose=True)
+
+sim_2D_het = ert_2D_het.simulate(scheme=DataSet,
+                                 mesh=mesh_2D,
+                                 res=180,
+                                 sr=False,
+                                 calcOnly=True,
+                                 verbose=True)
+
+
+cov_2D_het = ert_2D_het.coverage()
+ert_2D_het.showResult(model=inv_2D_het, coverage=cov_2D_het, cMin=60, cMax=110)#, logScale=True)
+ert_2D_het.showResult(cMin=60, cMax=110, logScale=True)
 #
 #
 #
