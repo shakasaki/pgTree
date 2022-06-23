@@ -32,12 +32,11 @@ First, you will need a new Python 3 environment. The easiest way is to use
 In the following we provide detailed installation instructions.
 1. Create a new anaconda environment with the latest version of pygimli
 ```
-conda create -n pgTree -c gimli -c conda-forge pygimli=1.2.6
-
+conda create -n pg -c gimli -c conda-forge pygimli=1.2.6
 ```
 2. Activate the environment. Remember to do this every time you want to work on the project.
 ```
-conda activate pgTree
+conda activate pg
 ```
 3. Clone the repository:
 ```
