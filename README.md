@@ -30,9 +30,10 @@ First, you will need a new Python 3 environment. The easiest way is to use
 [Anaconda](https://www.anaconda.com/distribution/). 
 
 In the following we provide detailed installation instructions.
-1. Create a new anaconda environment (Python 3.8 because 3.9 is not yet fully compatible with pyvista)
+1. Create a new anaconda environment with the latest version of pygimli
 ```
-conda create -n pgTree python=3.8
+conda create -n pgTree -c gimli -c conda-forge pygimli=1.2.6
+
 ```
 2. Activate the environment. Remember to do this every time you want to work on the project.
 ```
@@ -43,7 +44,6 @@ conda activate pgTree
 git clone https://github.com/shakasaki/pgTree.git
 
 cd pgTree
-
 ```
 5. Install the package locally by using the file `setup.py` by doing:
 ```
