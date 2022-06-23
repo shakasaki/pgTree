@@ -1,7 +1,3 @@
-### Installation of packages
-python -m pip install -e .
-
-
 # pgTree repository
 Welcome to the **pyGimli Tree**  repository. 
 Scope of the project: 
