@@ -4,7 +4,7 @@ python -m pip install -e .
 
 # pgTree repository
 Welcome to the **pyGimli Tree**  repository. 
-Name of the project: 
+Scope of the project: 
 
 * Forward and inverse modeling of realistic tree data for both 2D and 3D, using prior information on tree geometry
 
@@ -24,8 +24,7 @@ Table of Contents
 Introduction
 -----------
 
-Put info about project here
-
+More info about project here
 
 
 Installation 
@@ -37,23 +36,15 @@ First, you will need a new Python 3 environment. The easiest way is to use
 In the following we provide detailed installation instructions.
 1. Create a new anaconda environment (Python 3.8 because 3.9 is not yet fully compatible with pyvista)
 ```
-conda create -n pgtree python=3.8
+conda create -n pgTree python=3.8
 ```
 2. Activate the environment. Remember to do this every time you want to work on the project.
 ```
 conda activate pgTree
 ```
-3. Add conda forge channel to install git (if you already have git installed you can skip this step)
-```
-conda config --add channels conda-forge 
-conda config --set channel_priority strict 
-
-conda install -c conda-forge git
-```
-4. Clone the repository:
+3. Clone the repository:
 ```
 git clone https://github.com/shakasaki/pgTree.git
-
 
 cd pgTree
 
@@ -76,18 +67,7 @@ Running this code a second time will not trigger a download since the file alrea
 
 Models and Tutorials
 -------------------
-This repository provides a series of [tutorials](tutorials) and [model examples](model) for you to get familiar with the
-usage and characteristics of this package. If the models are for some reason not working please try to update your 
-master branch to the latest changes and download again the data. If the error persists please open an Issue describing 
-the problem and we will try to fix it as soon as possible.
 
-The [tutorials](tutorials) can be opened in a Jupyter-Notebook or Jupyter-Lab session.
-
-The [models](model) are simple python scripts that can be run with the users preferred tool.
-
-
-```
-This will keep the session and plot open. 
 
 
 Project Development
@@ -97,9 +77,6 @@ Write about development
 
 
 ### Maintainers
-
-* Isabelle Pfister (personal email here?)
-* Alexis Shakas (alexis.shakas@erdw.ethz.ch)
 
  
 License, use and attribution
