@@ -3,38 +3,41 @@ import matplotlib.pyplot as plt
 import pygimli as pg
 import pygimli.meshtools as mt
 from pygimli.physics import ert
-import time
 import pygimli.frameworks as pgf
-
+import pyvista as pv
 from core.helpers import (create_tree_mesh,
-                          ERT_position,
                           error_calc,
                           load_datasets,
                           create_starting_model_3D,
                           create_starting_model_2D,
                           get_filepaths)
 
-import pyvista as pv
 
 tree = 'Tree835_1_220511_morning'
 hardwood_radius = 0.0891
+
 # Load all data and geometry into a dictionary
-geometry_dict = load_datasets(experiment_plot='Control',
-                              tree_number=616,
-                              daytime='Afternoon',
-                              date=220511)
+geometry_dict = load_datasets(experiment_plot='Irrigation',
+                              tree_number=835,
+                              daytime='Morning',
+                              date=220510)
+
 # Get all the filepaths for a certain experiment (e.g irrigation tree 835 during the morning of 220510)
 filepaths = get_filepaths(experiment_plot='Irrigation',
                           tree_number=835,
                           daytime='Morning',
                           date=220510)
-
-one_dataset = geometry_dict['measured_values_616_afternoon_220511_2']
-tree_geom = create_tree_mesh(one_dataset)
+geometry_dict.keys()
+one_dataset = geometry_dict['measured_values_835_morning_220510_2']
 
 DataSet = ert.load(one_dataset['data path'])
 
-Homogeneous = ert.simulate(tree_geom, res=180, scheme=DataSet, sr=False, calcOnly=True, verbose=True)
+tree_mesh = create_tree_mesh(geometry_dict['measured_values_835_morning_220510_2'])
+
+pg.show(tree_mesh)
+
+
+Homogeneous = ert.simulate(tree_mesh, res=180, scheme=DataSet, sr=False, calcOnly=True, verbose=True)
 k = 1.0 * Homogeneous('i') / Homogeneous('u')
 DataSet.set('k', -k)
 

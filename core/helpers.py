@@ -4,51 +4,51 @@ import pygimli as pg
 import os
 from core import DATA_DIR, OUTPUT_DIR
 
+def create_tree_mesh(geometry_dict,
+                     height: float = 0.5,
+                     hardwood: bool = False,
+                     hardwood_radius: float = 0.1,
+                     set_ref_electrode_middle: bool = True):
+    area = 0.1  # maximum cell size for resulting triangles after mesh generation
+    quality = 35  # minimum angle of mesh-triangles (increasing this reduces refinement)
+    # refi_node = 5  # n° of additional nodes for refinement between electrodes
+    geometry = geometry_dict['geometry']
+    nel = geometry_dict['electrodes']
+    electrode_height = geometry_dict['electrode height']
+    center_pos, TreeGeom = create_tree_geometry(geometry_xy=geometry,
+                                                area=area,
+                                                mesh_quality=quality,
+                                                trunk_height=height)
+    TreeGeom.translate([0, 0, -height / 2])
 
-def ERT_position(treeGeom,
-                 nel: int = None,
-                 electrode_xy: (list, np.array) = None,
-                 zel: float = None,
-                 center_pos: np.array = None,
-                 height: float = None,
-                 set_ref_electrode_middle: bool = False):
-    """
-    Given the experiment details, return paths to datafiles and geometry
-    Args:
-        :param treeGeom: pyGimli PLC mesh
-        :param nel: Number of electrodes
-        :param electrode_xy: Position of electrodes in xy plane
-        :param zel: Height of electrodes
-        :param center_pos: Center position for the mesh (tree axis)
-        :param height: Height of mesh (tree trunk)
-        :param set_ref_electrode_middle: Whether to put reference electrode in the middle or the side of the mesh
-    Returns:
-        starting_model_3D: The starting parameters (resistivities)
-        mesh_3D: The mesh for the above parameters
-        mesh_3D_hom: The homogeneous mesh (without hardwood)
-    """
-    for i in range(nel):
+    if hardwood:
+        hardwood_cylinder = mt.createCylinder(radius=hardwood_radius,
+                                              height=height,
+                                              n_segments=nel,
+                                              pos=center_pos,
+                                              marker=2)
+        TreeGeom = TreeGeom + hardwood_cylinder
+    for i in range(geometry.shape[0]):
         # set the electrodes as nodes with marker -99 to the geometry
         # Index = Tree_Geom.findNearestNode((GEOM[i,1], GEOM[i,2], zel))
         # Tree_Geom.node(Index).setMarker(-99)
-        treeGeom.createNode(pg.Pos(electrode_xy[i, 1], electrode_xy[i, 2], zel), marker=-99)
+        TreeGeom.createNode(pg.Pos(geometry[i, 1], geometry[i, 2], electrode_height), marker=-99)
         # For sufficient numerical accuracy it is generally a good idea to refine the mesh in the vicinity of the
         # electrodes positions.
-        treeGeom.createNode([electrode_xy[i, 1], electrode_xy[i, 2], zel - 1e-3 / 2])
+        TreeGeom.createNode([geometry[i, 1], geometry[i, 2], electrode_height - 1e-3 / 2])
     # Always need dipole current injection since there can be no current flow out of the closed boundaries. Define a
     # reference electrode position inside the PLC, with a marker -999, somewhere away from the electrodes (and refine
     # it).
-    treeGeom.createNode(center_pos, marker=-999)  # center_pos
-    treeGeom.createNode([center_pos[0], center_pos[1], center_pos[2] - 1e-3 / 2])
+    if set_ref_electrode_middle:
+        TreeGeom.createNode(center_pos, marker=-999)  # place it either in the center or on top of the mesh
+    else:
+        TreeGeom.createNode([geometry[0, 1], geometry[0, 2], height / 2], marker=-999)
     # The second problem for pure Neumann domains is the non-uniqueness of the partial differential equation (there
     # are only partial derivatives of the electric potential so an arbitrary value might be added, i.e. calibrated).
     # Add calibration node with marker -1000 where the potential is fixed , somewhere on the boundary and far from
     # the electrodes.
-    if set_ref_electrode_middle:
-        treeGeom.createNode([center_pos[0], center_pos[1], height / 2], marker=-1000)
-    else:
-        treeGeom.createNode([electrode_xy[0, 1], electrode_xy[0, 1], height / 2], marker=-1000)
-    return mt.createMesh(treeGeom), treeGeom
+    TreeGeom.createNode([geometry[0, 1], geometry[0, 2], height / 2], marker=-1000)
+    return mt.createMesh(TreeGeom)
 
 
 # Error calculation: select rho from different file names
@@ -56,8 +56,6 @@ def select_rho(fname, line):
     data = np.loadtxt(fname)
     rho = data[:, line]
     return np.abs(rho)
-
-
 
 
 def create_starting_model_3D(TreeGeom,
@@ -195,32 +193,6 @@ def load_datasets(experiment_plot: str = None,
             data_dict[file_name]['data path'] = file_out
     return data_dict
 
-
-def create_tree_mesh(geometry_dict,
-                     height: float = 0.5,
-                     hardwood: bool = False,
-                     hardwood_radius: float = 0.1):
-    area = 0.1  # maximum cell size for resulting triangles after mesh generation
-    quality = 35  # minimum angle of mesh-triangles (increasing this reduces refinement)
-    # refi_node = 5  # n° of additional nodes for refinement between electrodes
-    geometry = geometry_dict['geometry']
-    nel = geometry_dict['electrodes']
-    electrode_height = geometry_dict['electrode height']
-    center_pos, TreeGeom = create_tree_geometry(geometry, area, quality, height)
-    TreeGeom.translate([0, 0, -height / 2])
-
-    # 2) Set the ERT position (along the circumference and equally spaced) and create mesh
-    Tree, treeMesh = ERT_position(nel, TreeGeom, geometry, electrode_height, center_pos, height)
-    if hardwood:
-        hardwood_cylinder = mt.createCylinder(radius=hardwood_radius,
-                                              height=height,
-                                              n_segments=nel,
-                                              pos=center_pos,
-                                              marker=2)
-        return mt.createMesh(treeMesh + hardwood_cylinder)
-    else:
-        return mt.createMesh(treeMesh)
-
 def create_starting_model_2D(DataSet, hardwood_radius):
     geom_2D = mt.createPolygon(DataSet.sensorPositions(), isClosed=True)
     geom_2D_start = mt.createPolygon(DataSet.sensorPositions(), isClosed=True)
@@ -275,7 +247,6 @@ def error_calc(file1, file2, file3):
 
 def strip_first_col(fname,
                     delimiter=None):
-
     with open(fname, 'r') as fin:
         for line in fin:
             try:
@@ -284,12 +255,15 @@ def strip_first_col(fname,
                 continue
 
 
-def create_tree_geometry(GEOM, area, quality, height):
-    center_pos = [GEOM[:, 1].min() + (GEOM[:, 1].max() - GEOM[:, 1].min()) / 2,
-                  GEOM[:, 2].min() + (GEOM[:, 2].max() - GEOM[:, 2].min()) / 2, 0.0]
-    El_geom = mt.createPolygon(GEOM[:, 1:3],
+def create_tree_geometry(geometry_xy: np.array = None,
+                         area: float = None,
+                         mesh_quality: float = None,
+                         trunk_height: float = None):
+    center_pos = [geometry_xy[:, 1].min() + (geometry_xy[:, 1].max() - geometry_xy[:, 1].min()) / 2,
+                  geometry_xy[:, 2].min() + (geometry_xy[:, 2].max() - geometry_xy[:, 2].min()) / 2, 0.0]
+    El_geom = mt.createPolygon(geometry_xy[:, 1:3],
                                isClosed=True,
                                area=area,
-                               quality=quality,
+                               quality=mesh_quality,
                                boundaryMarker=1)
-    return center_pos, mt.extrude(El_geom, z=height)
+    return center_pos, mt.extrude(El_geom, z=trunk_height)
