@@ -3,67 +3,84 @@ import pygimli.meshtools as mt
 import pygimli as pg
 import os
 from core import DATA_DIR, OUTPUT_DIR
+import pickle
 
-def create_tree_mesh(geometry_dict,
-                     height: float = 0.5,
-                     hardwood: bool = False,
-                     hardwood_radius: float = 0.1,
-                     set_ref_electrode_middle: bool = True):
-    area = 0.1  # maximum cell size for resulting triangles after mesh generation
-    quality = 35  # minimum angle of mesh-triangles (increasing this reduces refinement)
-    # refi_node = 5  # n° of additional nodes for refinement between electrodes
-    geometry = geometry_dict['geometry']
-    nel = geometry_dict['electrodes']
-    electrode_height = geometry_dict['electrode height']
-    center_pos, TreeGeom = create_tree_geometry(geometry_xy=geometry,
-                                                area=area,
-                                                mesh_quality=quality,
-                                                trunk_height=height)
-    TreeGeom.translate([0, 0, -height / 2])
 
-    if hardwood:
-        hardwood_cylinder = mt.createCylinder(radius=hardwood_radius,
-                                              height=height,
-                                              n_segments=nel,
-                                              pos=center_pos,
-                                              marker=2)
-        TreeGeom = TreeGeom + hardwood_cylinder
-    for i in range(geometry.shape[0]):
+def load_data_for_tree(tree: int = None):
+    all_data = load_pickle_obj(directory=DATA_DIR, name='data_dict')
+    all_keys = list(all_data.keys())
+    tree_data = {}
+    key_list = list()
+    for key in all_keys:
+        if key.split('_')[0] == str(tree):
+            tree_data[key] = all_data[key]
+            key_list.append(key)
+    return tree_data, key_list
+
+
+def create_3D_plc(electrodes: np.array = None,
+                  hardwood_radius: float = None,
+                  height: float = 1.0,
+                  zel: float = 0,
+                  area: float = 0.1,
+                  quality: int = 35):
+    nel = electrodes.shape[0]  # n° of electrodes
+    El_geom = mt.createPolygon(electrodes,
+                               isClosed=True,
+                               area=area,
+                               quality=quality,
+                               boundaryMarker=1)  # , addNodes=refi_node)
+    Tree_Geom = mt.extrude(El_geom, z=height)  # marker=2)
+    Tree_Geom.translate([0, 0, -height / 2])
+
+    for i in range(nel):
         # set the electrodes as nodes with marker -99 to the geometry
-        # Index = Tree_Geom.findNearestNode((GEOM[i,1], GEOM[i,2], zel))
-        # Tree_Geom.node(Index).setMarker(-99)
-        TreeGeom.createNode(pg.Pos(geometry[i, 1], geometry[i, 2], electrode_height), marker=-99)
-        # For sufficient numerical accuracy it is generally a good idea to refine the mesh in the vicinity of the
-        # electrodes positions.
-        TreeGeom.createNode([geometry[i, 1], geometry[i, 2], electrode_height - 1e-3 / 2])
-    # Always need dipole current injection since there can be no current flow out of the closed boundaries. Define a
-    # reference electrode position inside the PLC, with a marker -999, somewhere away from the electrodes (and refine
-    # it).
-    if set_ref_electrode_middle:
-        TreeGeom.createNode(center_pos, marker=-999)  # place it either in the center or on top of the mesh
+        Tree_Geom.createNode(pg.Pos(electrodes[i, 0],
+                                    electrodes[i, 1], zel), marker=-99)
+        # For sufficient numerical accuracy it is generally a good idea to refine the mesh in the vicinity of the electrodes positions.
+        Tree_Geom.createNode([electrodes[i, 0],
+                              electrodes[i, 1],
+                              zel - 1e-3 / 2])
+
+    # Always need dipole current injection since there can be no current flow out of the closed boundaries.
+    # Define a reference electrode position inside the PLC, with a marker -999, somewhere away from the electrodes (and refine it).
+    reference_electrode = [electrodes[0, 0],
+                           electrodes[0, 1],
+                           height / 2]
+    Tree_Geom.createNode(reference_electrode, marker=-999)
+    Tree_Geom.createNode([reference_electrode[0],
+                          reference_electrode[1],
+                          reference_electrode[2] - 1e-3 / 2])
+
+    # The second problem for pure Neumann domains is the non-uniqueness of the partial differential equation (there are only partial derivatives of the electric potential so an arbitrary value might be added, i.e. calibrated).
+    # Add calibration node with marker -1000 where the potential is fixed , somewhere on the boundary and far from the electrodes.
+
+    calibration_electrode = [electrodes[0, 0],
+                             electrodes[0, 1],
+                             -height / 2]
+    Tree_Geom.createNode(calibration_electrode,
+                         marker=-1000)  # height/2
+    Tree_Geom.createNode([calibration_electrode[0],
+                          calibration_electrode[1],
+                          calibration_electrode[2] - 1e-3 / 2])
+
+    if hardwood_radius:
+        center = [electrodes[:, 0].min() + (electrodes[:, 0].max() - electrodes[:, 0].min()) / 2,
+                  electrodes[:, 1].min() + (electrodes[:, 1].max() - electrodes[:, 1].min()) / 2,
+                  0.0]
+        hardwood_cylinder = mt.createCylinder(hardwood_radius, height, nel, center, marker=2)
+        return Tree_Geom + hardwood_cylinder
     else:
-        TreeGeom.createNode([geometry[0, 1], geometry[0, 2], height / 2], marker=-999)
-    # The second problem for pure Neumann domains is the non-uniqueness of the partial differential equation (there
-    # are only partial derivatives of the electric potential so an arbitrary value might be added, i.e. calibrated).
-    # Add calibration node with marker -1000 where the potential is fixed , somewhere on the boundary and far from
-    # the electrodes.
-    TreeGeom.createNode([geometry[0, 1], geometry[0, 2], height / 2], marker=-1000)
-    return mt.createMesh(TreeGeom)
+        return Tree_Geom
 
 
-# Error calculation: select rho from different file names
-def select_rho(fname, line):
-    data = np.loadtxt(fname)
-    rho = data[:, line]
-    return np.abs(rho)
-
-
-def create_starting_model_3D(TreeGeom,
+def create_starting_model_3D(electrodes: np.array = None,
                              res_map: list = None,
                              hardwood_radius: float = None,
-                             height: float = None,
                              nel: int = None,
-                             center_pos: np.array = None):
+                             center_pos: np.array = None,
+                             height: float = 1,
+                             zel: float = 0):
     """
     Given the experiment details, return paths to datafiles and geometry
     Args:
@@ -80,6 +97,10 @@ def create_starting_model_3D(TreeGeom,
     """
     hardwood_cylinder = mt.createCylinder(hardwood_radius, height, nel, center_pos, boundaryMarker=1)
     hardwood_cylinder_marker2 = mt.createCylinder(hardwood_radius, height, nel, center_pos, marker=2)
+
+    TreeGeom = create_3D_plc(electrodes=electrodes,
+                             height=height,
+                             zel=zel)
 
     mesh_3D = mt.createMesh(TreeGeom + hardwood_cylinder)
     bogus_mesh_3D_start = mt.createMesh(TreeGeom + hardwood_cylinder_marker2)
@@ -193,6 +214,7 @@ def load_datasets(experiment_plot: str = None,
             data_dict[file_name]['data path'] = file_out
     return data_dict
 
+
 def create_starting_model_2D(DataSet, hardwood_radius):
     geom_2D = mt.createPolygon(DataSet.sensorPositions(), isClosed=True)
     geom_2D_start = mt.createPolygon(DataSet.sensorPositions(), isClosed=True)
@@ -224,27 +246,6 @@ def create_starting_model_2D(DataSet, hardwood_radius):
 
 
 # Error calculation: calculation
-def error_calc(file1, file2, file3):
-    rho1 = select_rho(file1, 7)
-    rho2 = select_rho(file1, 10)
-    rho3 = select_rho(file2, 7)
-    rho4 = select_rho(file2, 10)
-    rho5 = select_rho(file3, 7)
-    rho6 = select_rho(file3, 10)
-
-    # data_pos = np.array([rho2, rho4, rho6])
-    # data_neg = np.array([rho1, rho3, rho5])
-    all_data = np.array([rho1, rho2, rho3, rho4, rho5, rho6])
-
-    # std = np.std(all_data, axis=0)
-    med = np.median(all_data, axis=0)
-    std_2 = ((1 / 6) * rho1) ** 2 + ((1 / 6) * rho2) ** 2 + ((1 / 6) * rho3) ** 2 + ((1 / 6) * rho4) ** 2 + (
-            (1 / 6) * rho5) ** 2 + ((1 / 6) * rho6) ** 2 - (med ** 2)
-    std_1 = np.sqrt(abs(std_2))
-    err = (med - std_1) / med
-    return err
-
-
 def strip_first_col(fname,
                     delimiter=None):
     with open(fname, 'r') as fin:
@@ -255,15 +256,45 @@ def strip_first_col(fname,
                 continue
 
 
-def create_tree_geometry(geometry_xy: np.array = None,
-                         area: float = None,
-                         mesh_quality: float = None,
-                         trunk_height: float = None):
-    center_pos = [geometry_xy[:, 1].min() + (geometry_xy[:, 1].max() - geometry_xy[:, 1].min()) / 2,
-                  geometry_xy[:, 2].min() + (geometry_xy[:, 2].max() - geometry_xy[:, 2].min()) / 2, 0.0]
-    El_geom = mt.createPolygon(geometry_xy[:, 1:3],
-                               isClosed=True,
-                               area=area,
-                               quality=mesh_quality,
-                               boundaryMarker=1)
-    return center_pos, mt.extrude(El_geom, z=trunk_height)
+# def create_tree_geometry(geometry_xy: np.array = None,
+#                          area: float = None,
+#                          mesh_quality: float = None,
+#                          trunk_height: float = None):
+#     center_pos = [geometry_xy[:, 1].min() + (geometry_xy[:, 1].max() - geometry_xy[:, 1].min()) / 2,
+#                   geometry_xy[:, 2].min() + (geometry_xy[:, 2].max() - geometry_xy[:, 2].min()) / 2, 0.0]
+#     El_geom = mt.createPolygon(geometry_xy[:, 1:3],
+#                                isClosed=True,
+#                                area=area,
+#                                quality=mesh_quality,
+#                                boundaryMarker=1)
+#     return center_pos, mt.extrude(El_geom, z=trunk_height)
+
+
+def save_pickle_obj(obj,
+                    directory: str = None,
+                    name: str = None):
+    """
+    Saves pickle object in specified directory
+    Args:
+        obj: The object to save in a pickle file
+        directory: Directory to store the file
+        name: Name of file
+    Returns:
+        saved file
+    """
+    with open(directory + name + '.pkl', 'wb') as f:
+        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+
+
+def load_pickle_obj(directory: str = None,
+                    name: str = None):
+    """
+    Load pickle object in from directory
+    Args:
+        directory: Directory to load the file
+        name: Name of file
+    Returns:
+        returns the loaded file
+    """
+    with open(directory + name + '.pkl', 'rb') as f:
+        return pickle.load(f)
