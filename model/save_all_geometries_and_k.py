@@ -5,15 +5,21 @@ import pygimli.meshtools as mt
 from pygimli.physics import ert
 from core import OUTPUT_DIR, DATA_DIR
 import numpy as np
-from core.helpers import save_pickle_obj
+from core.helpers import save_pickle_obj, create_directory
 import os
+
+create_directory(OUTPUT_DIR + 'geometry' + os.sep)
+create_directory(OUTPUT_DIR + 'dictionaries' + os.sep)
+create_directory(OUTPUT_DIR + 'figures' + os.sep)
+create_directory(OUTPUT_DIR + 'temp' + os.sep)
+create_directory(OUTPUT_DIR + 'meshes' + os.sep)
 
 trees = [616, 671, 835, 836, 870, 875]
 tree_dict = {}
 dataset_dict = {}
 plt.figure()
 for tree in trees:
-    electrodes = pd.read_table(DATA_DIR + 'geometries' + os.sep + 'geometry_' + str(tree) + '.txt', header=None).loc[:, 1:2].to_numpy()
+    electrodes = pd.read_table(DATA_DIR + 'geometries' + os.sep +'geometry_' + str(tree) + '.txt', header=None).loc[:, 1:2].to_numpy()
     tree_dict[tree] = {}
     tree_dict[tree]['electrode positions'] = electrodes
     tree_dict[tree]['center'] = [electrodes[:, 0].min() + (electrodes[:, 0].max() - electrodes[:, 0].min()) / 2,
@@ -88,7 +94,7 @@ for tree in trees:
     TreeMesh = mt.createMesh(Tree_Geom)
     N_data = electrode_arrays.shape[0]
     # create Dataset from geometry and measured data:
-    with open(OUTPUT_DIR + 'temp_dataset.dat', 'w') as f: #
+    with open(OUTPUT_DIR + 'temp' + os.sep + 'temp_dataset.dat', 'w') as f: #
         f.write('%d' % nel + '\n') #
         f.write('# ' + 'x ' + 'y ' + 'z ' + '\n') #
         for i in range(nel): #
@@ -106,9 +112,7 @@ for tree in trees:
         f.write('%d' % 0) #
     f.close()
 
-    DataSet = ert.load(OUTPUT_DIR + 'temp_dataset.dat')
-
-    # TreeMesh.exportVTK('TreeMesh')
+    DataSet = ert.load(OUTPUT_DIR + 'temp' + os.sep + 'temp_dataset.dat')
 
     Homogeneous = ert.simulate(TreeMesh,
                                res=1,
@@ -123,10 +127,10 @@ for tree in trees:
     DataSet['err'] = np.zeros(DataSet['a'].shape)
     DataSet['rhoa'] = np.zeros(DataSet['a'].shape)
     dataset_dict[tree] = DataSet
-    DataSet.save(DATA_DIR + 'Tree_' + str(tree) + '_geometry_layout.dat')
-    TreeMesh.exportVTK(DATA_DIR + 'Tree_' + str(tree) + '_mesh.vtk')
+    DataSet.save(OUTPUT_DIR + 'geometry' + os.sep + 'Tree_' + str(tree) + '_geometry_layout.dat')
+    TreeMesh.exportVTK(OUTPUT_DIR + 'meshes' + os.sep + 'Tree_' + str(tree) + '_mesh.vtk')
 
-save_pickle_obj(tree_dict, directory=DATA_DIR, name='electrode_geometry')
+save_pickle_obj(tree_dict, directory=OUTPUT_DIR + 'dictionaries' + os.sep, name='electrode_geometries')
 
 fig, axs = plt.subplots(2,3)
 fig.set_figheight(15)
@@ -142,4 +146,5 @@ for index, tree in enumerate(trees):
             ax=axs[index],
             label='Geometric factor')
     axs[index].set_title('Tree ' + str(tree))
-fig.savefig(OUTPUT_DIR + 'all_geometric_factors.png')
+print('Figures are stored in ' + OUTPUT_DIR + 'figures')
+fig.savefig(OUTPUT_DIR + 'figures' + os.sep + 'all_geometric_factors.png')

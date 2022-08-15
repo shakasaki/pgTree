@@ -3,7 +3,7 @@ from core import DATA_DIR
 from pooch import __version__, check_version, HTTPDownloader, retrieve
 import zipfile
 
-url = "https://polybox.ethz.ch/index.php/s/7wXwtlmkw8V1ac2/download"
+url = "https://polybox.ethz.ch/index.php/apps/files/?dir=/Pfynwald/Isabelle/git%20project/data&fileid=2959268056"
 file_path = DATA_DIR + "data.zip"
 url = url.format(check_version(__version__, fallback="main"))
 downloader = HTTPDownloader()

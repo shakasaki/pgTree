@@ -4,10 +4,12 @@ import pygimli as pg
 import os
 from core import DATA_DIR, OUTPUT_DIR
 import pickle
+import matplotlib.pyplot as plt
 
 
 def load_data_for_tree(tree: int = None):
-    all_data = load_pickle_obj(directory=DATA_DIR, name='data_dict')
+    all_data = load_pickle_obj(directory=OUTPUT_DIR + 'dictionaries' + os.sep,
+                               name='data_dict')
     all_keys = list(all_data.keys())
     tree_data = {}
     key_list = list()
@@ -298,3 +300,136 @@ def load_pickle_obj(directory: str = None,
     """
     with open(directory + name + '.pkl', 'rb') as f:
         return pickle.load(f)
+
+
+def plot_data_fit(ert_inversion,
+                  electrode_scheme,
+                  name,
+                  directory: str = OUTPUT_DIR + 'figures' + os.sep):
+    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, )
+    fig.set_figheight(7)
+    fig.set_figwidth(15)
+    min_data, max_data = pg.utils.interperc(ert_inversion.inv.dataVals)
+    ax1.set_title("Simulated data\n")
+    pg.show(electrode_scheme,
+            vals=ert_inversion.inv.dataVals,
+            circular=True,
+            cMin=min_data,
+            cMax=max_data,
+            ax=ax1)
+    pg.show(electrode_scheme,
+            vals=ert_inversion.inv.response,
+            circular=True,
+            cMin=min_data,
+            cMax=max_data,
+            ax=ax2)
+    ax2.set_title("Model response\n")
+    rho_misfit = ert_inversion.inv.response - ert_inversion.inv.dataVals
+    pg.show(electrode_scheme,
+            vals=rho_misfit,
+            circular=True,
+            cMin=np.min(rho_misfit),
+            cMax=np.max(rho_misfit),
+            ax=ax3)
+    ax3.set_title("Misfit\n")
+    plt.show()
+    fig.savefig(directory + name)
+    print('Figure ' + name + ' saved in ' + directory)
+    return fig
+
+
+def plot_chi(ert_3D,
+             name,
+             directory: str = OUTPUT_DIR + 'figures' + os.sep):
+    fig = plt.figure()
+    plt.semilogy(ert_3D.inv.chi2History, '-x')
+    plt.xlabel('Number of Iterations')
+    plt.ylabel(r'$\chi^2$')
+    plt.show()
+    fig.savefig(directory + name)
+    print('Figure ' + name + ' saved in ' + directory)
+    return fig
+
+
+def plot_field_data(field_data,
+                    name: str = 'choose_a_name'):
+    data_entries = list(field_data.keys())
+    fig, axs = plt.subplots(2, 1)
+    fig.set_figheight(15)
+    fig.set_figwidth(15)
+    # [  0     1  2  3  4    5   6      7     8     9     10   11
+    # [ index, A, B, M, N, Ipos, Upos, Rpos, Ineg, Uneg, Rneg, Level]
+    for entry in data_entries:
+        axs[0].plot(field_data[entry][:, 7], 'x')
+    axs[0].set_xlabel('Measurement (-)')
+    axs[0].set_ylabel('Apparent resistivity (Ohm meters)')
+    axs[0].set_title('Positive run')
+    for entry in data_entries:
+        axs[1].plot(field_data[entry][:, 10], 'x')
+    axs[1].set_xlabel('Measurement (-)')
+    axs[1].set_ylabel('Apparent resistivity (Ohm meters)')
+    axs[1].set_title('Negative run')
+    fig.savefig(OUTPUT_DIR + 'figures' + os.sep + name)
+    return fig
+
+
+def get_data_error(field_data,
+                   use_both: bool = False):
+    data_entries = list(field_data.keys())
+    # [  0     1  2  3  4    5   6      7     8     9     10   11
+    # [ index, A, B, M, N, Ipos, Upos, Rpos, Ineg, Uneg, Rneg, Level]
+    current = list()
+    voltage = list()
+    resistance = list()
+    if use_both:
+        for entry in data_entries:
+            current.append(field_data[entry][:, 5])
+            current.append(field_data[entry][:, 8])
+            voltage.append(field_data[entry][:, 6])
+            voltage.append(field_data[entry][:, 9])
+            resistance.append(field_data[entry][:, 7])
+            resistance.append(field_data[entry][:, 10])
+            cols = len(data_entries) * 2
+    else:
+        for entry in data_entries:
+            current.append(field_data[entry][:, 5])
+            voltage.append(field_data[entry][:, 6])
+            resistance.append(field_data[entry][:, 7])
+            cols = len(data_entries)
+
+    current = np.array(current).T
+    voltage = np.array(voltage).T
+    resistance = np.abs(np.array(resistance)).T
+
+    md_current = np.median(current, axis=1)
+    md_voltage = np.median(voltage, axis=1)
+    md_resistance = np.median(resistance, axis=1)
+
+    mdc_tiled = np.tile(md_current, (cols, 1)).T
+    mdv_tiled = np.tile(md_voltage, (cols, 1)).T
+    mdr_tiled = np.tile(md_resistance, (cols, 1)).T
+
+    err_current = np.std(current - mdc_tiled, axis=1) / md_current
+    err_voltage = np.std(voltage - mdv_tiled, axis=1) / md_voltage
+    err_resistance = np.std(resistance - mdr_tiled, axis=1) / md_resistance
+
+    medians = np.array([md_current,
+                        md_voltage,
+                        md_resistance]).T
+
+    errors = np.array([err_current,
+                       err_voltage,
+                       err_resistance]).T
+
+    return medians, errors
+
+
+def get_pg_dataset(field_data,
+                   tree: int = None):
+    from pygimli.physics import ert
+    DataSet = ert.load(OUTPUT_DIR + 'geometry' + os.sep + 'Tree_' + str(tree) + '_geometry_layout.dat')
+    medians, errors = get_data_error(field_data)
+    DataSet['i'] = medians[:, 0]
+    DataSet['u'] = medians[:, 1]
+    DataSet['err'] = errors
+    return DataSet
