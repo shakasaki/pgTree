@@ -57,10 +57,11 @@ DataSet = get_pg_dataset(field_data, tree=tree)
 ###########################################################################################################
 ## Force data to negative or only remove positive u
 
-DataSet.remove(DataSet['u'] > 0)
-# voltage = DataSet['u'].array()
-# voltage[voltage > 0] = -voltage[voltage > 0]
-# DataSet['u'] = voltage
+#DataSet.remove(DataSet['u'] > 0)
+
+voltage = DataSet['u'].array()
+voltage[voltage > 0] = -voltage[voltage > 0]
+DataSet['u'] = voltage
 
 
 ert_3D = ert.ERTManager(sr=False)

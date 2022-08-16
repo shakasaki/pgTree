@@ -352,25 +352,38 @@ def plot_chi(ert_3D,
 
 
 def plot_field_data(field_data,
-                    name: str = 'choose_a_name'):
+                    name: str = 'choose_a_name',
+                    only_positive: bool = True):
     data_entries = list(field_data.keys())
-    fig, axs = plt.subplots(2, 1)
-    fig.set_figheight(15)
-    fig.set_figwidth(15)
     # [  0     1  2  3  4    5   6      7     8     9     10   11
     # [ index, A, B, M, N, Ipos, Upos, Rpos, Ineg, Uneg, Rneg, Level]
-    for entry in data_entries:
-        axs[0].plot(field_data[entry][:, 7], 'x')
-    axs[0].set_xlabel('Measurement (-)')
-    axs[0].set_ylabel('Apparent resistivity (Ohm meters)')
-    axs[0].set_title('Positive run')
-    for entry in data_entries:
-        axs[1].plot(field_data[entry][:, 10], 'x')
-    axs[1].set_xlabel('Measurement (-)')
-    axs[1].set_ylabel('Apparent resistivity (Ohm meters)')
-    axs[1].set_title('Negative run')
-    fig.savefig(OUTPUT_DIR + 'figures' + os.sep + name)
-    return fig
+    if only_positive:
+        fig, axs = plt.subplots(1, 1)
+        fig.set_figheight(15)
+        fig.set_figwidth(15)
+        for entry in data_entries:
+            axs.plot(field_data[entry][:, 7], 'x')
+        axs.set_xlabel('Measurement (-)')
+        axs.set_ylabel('Apparent resistivity (Ohm meters)')
+        axs.set_title('Positive run')
+        fig.savefig(OUTPUT_DIR + 'figures' + os.sep + name)
+        return fig
+    else:
+        fig, axs = plt.subplots(2, 1)
+        fig.set_figheight(15)
+        fig.set_figwidth(15)
+        for entry in data_entries:
+            axs[0].plot(field_data[entry][:, 7], 'x')
+        axs[0].set_xlabel('Measurement (-)')
+        axs[0].set_ylabel('Apparent resistivity (Ohm meters)')
+        axs[0].set_title('Positive run')
+        for entry in data_entries:
+            axs[1].plot(field_data[entry][:, 10], 'x')
+        axs[1].set_xlabel('Measurement (-)')
+        axs[1].set_ylabel('Apparent resistivity (Ohm meters)')
+        axs[1].set_title('Negative run')
+        fig.savefig(OUTPUT_DIR + 'figures' + os.sep + name)
+        return fig
 
 
 def get_data_error(field_data,
